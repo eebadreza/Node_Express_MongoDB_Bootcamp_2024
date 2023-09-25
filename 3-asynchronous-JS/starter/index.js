@@ -13,6 +13,17 @@ const readMyFile = (file) => {
   });
 };
 
+const writeMyFile = (file, data) => {
+  return new Promise((resolve, reject) => {
+    fs.writeFile(`${__dirname}/${file}`, data, (err) => {
+      if (err) {
+        reject('404 - File not Found !');
+      }
+      resolve(data);
+    });
+  });
+};
+
 readMyFile(`${__dirname}/dog.txt`)
   .then((data) => {
     return data;
@@ -21,21 +32,14 @@ readMyFile(`${__dirname}/dog.txt`)
     return superagent
       .get(`https://dog.ceo/api/breed/${data}/images/random`)
       .then((res) => {
-        // console.log(res.body.message);
         return res.body.message;
       })
       .then((msg) => {
-        return fs.writeFile(`${__dirname}/dog-image.txt`, msg, (err) => {
-          if (err) {
-            // console.error(err.message);
-            return err.message;
-          }
-        });
-      })
-      .catch((err) => {
-        console.log(err.message);
+        return writeMyFile(`dog-image.txt`, msg);
       });
-    //   console.log(info);
+  })
+  .catch((err) => {
+    console.log(err.message);
   });
 
 // fs.readFile(`${__dirname}/dog.txt`, async function (errr, data) {
