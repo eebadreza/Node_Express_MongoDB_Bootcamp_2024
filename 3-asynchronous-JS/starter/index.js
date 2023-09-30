@@ -42,6 +42,7 @@ readMyFile(`${__dirname}/dog.txt`)
     console.log(err.message);
   });
 
+////////////////////////////////////////////////////////////
 // fs.readFile(`${__dirname}/dog.txt`, async function (errr, data) {
 //   console.log(`Breed : ${data}`);
 // Method 1
