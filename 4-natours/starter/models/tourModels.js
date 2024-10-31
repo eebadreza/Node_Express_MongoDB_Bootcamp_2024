@@ -1,60 +1,178 @@
 const mongoose = require('mongoose');
+const slugify = require('slugify');
 
-const tourSchema = new mongoose.Schema({
-  name: {
-    type: String,
-    required: [true, 'A tour must have  a name'],
-    unique: true,
-    trim: true,
+const tourSchema = new mongoose.Schema(
+  {
+    name: {
+      type: String,
+      required: [true, 'A tour must have  a name'],
+      unique: true,
+      trim: true,
+      maxlength: [40, 'A tour must have less or equal 40 charecters'],
+      minlength: [10, 'A tour must have more or equal 10 charecters'],
+      // validate: [validator.isAlpha, 'Tour name must be charecters'],
+    },
+    slug: String,
+    difficulty: {
+      type: String,
+      required: [true, 'A tour must have  a difficulty'],
+      enum: {
+        values: ['easy', 'medium', 'difficult'],
+        message: 'Difficulty eiether easy, medium or difficult',
+      },
+    },
+    duration: {
+      type: Number,
+      required: [true, 'A tour must have  a duration'],
+    },
+    maxGroupSize: {
+      type: Number,
+      required: [true, 'A tour must have  a group size'],
+    },
+    ratingAverage: {
+      type: Number,
+      default: 4.5,
+      min: [1, 'A tour must have rating more or equal 1'],
+      max: [5, 'A tour must have rating less or equal 5'],
+      set: (val) => Math.round(val * 10) / 10,
+    },
+    ratingQuantity: {
+      type: Number,
+      default: 0,
+    },
+    price: {
+      type: Number,
+      required: [true, 'A tour must have  a price'],
+    },
+    discount: {
+      type: Number,
+      validate: {
+        validator: function (val) {
+          return val < this.price;
+        },
+        message: 'Discount price ({VALUE}) should be lower than regular price',
+      },
+    },
+    summary: {
+      type: String,
+      trim: true,
+      required: [true, 'A tour must have  a description'],
+    },
+    description: {
+      type: String,
+      trim: true,
+    },
+    imageCover: {
+      type: String,
+      required: [true, 'A tour must have  a cover image'],
+    },
+    images: [String],
+    createdAt: {
+      type: Date,
+      default: Date.now(),
+      select: false,
+    },
+    startDates: [Date],
+    secretTour: {
+      type: Boolean,
+      default: false,
+    },
+    startLocation: {
+      // GeoJSON
+      type: {
+        type: String,
+        default: 'Point',
+        enum: ['Point'],
+      },
+      coordinates: [Number],
+      address: String,
+      description: String,
+    },
+    locations: [
+      {
+        type: {
+          type: String,
+          default: 'Point',
+          enum: ['Point'],
+        },
+        coordinates: [Number],
+        address: String,
+        description: String,
+        day: Number,
+      },
+    ],
+    // guides: Array,
+    guides: [
+      {
+        type: mongoose.Schema.ObjectId,
+        ref: 'User',
+      },
+    ],
   },
-  difficulty: {
-    type: String,
-    required: [true, 'A tour must have  a difficulty'],
-  },
-  duration: {
-    type: Number,
-    required: [true, 'A tour must have  a duration'],
-  },
-  maxGroupSize: {
-    type: Number,
-    required: [true, 'A tour must have  a group size'],
-  },
-  ratingAverage: {
-    type: Number,
-    default: 4.5,
-  },
-  ratingQuantity: {
-    type: Number,
-    default: 0,
-  },
-  price: {
-    type: Number,
-    required: [true, 'A tour must have  a price'],
-  },
-  discount: {
-    type: Number,
-  },
-  summary: {
-    type: String,
-    trim: true,
-    required: [true, 'A tour must have  a description'],
-  },
-  description: {
-    type: String,
-    trim: true,
-  },
-  imageCover: {
-    type: String,
-    required: [true, 'A tour must have  a cover image'],
-  },
-  images: [String],
-  createdAt: {
-    type: Date,
-    default: Date.now(),
-    select: false,
-  },
-  startDates: [Date],
+  {
+    toJSON: { virtuals: true }, // So `res.json()` and other `JSON.stringify()` functions include virtuals
+    toObject: { virtuals: true }, // So `console.log()` and other functions that use `toObject()` include virtuals
+  }
+);
+
+// tourSchema.index({ price: 1 });
+tourSchema.index({ price: 1, ratingAverage: -1 });
+tourSchema.index({ slug: 1 });
+tourSchema.index({ startLocation: '2dsphere' });
+// tourSchema.index({ startLocation: '2dsphere' });
+
+tourSchema.virtual('durationWeeks').get(function () {
+  return this.duration / 7;
 });
+
+// VIRTUAL POPULATE
+tourSchema.virtual('reviews', {
+  ref: 'Review',
+  foreignField: 'tour',
+  localField: '_id',
+});
+
+// DOCUMENT MIDDLEWARE
+tourSchema.pre('save', function (next) {
+  this.slug = slugify(this.name, { lower: true });
+  next();
+});
+
+// tourSchema.pre('save', async function (next) {
+//   const guidesPromises = this.guides.map(async (id) => await User.findById(id));
+//   this.guides = await Promise.all(guidesPromises);
+
+//   next();
+// });
+
+// QUERY MIDDLEWARE
+tourSchema.pre(/^find/, function (next) {
+  this.find({ secretTour: { $ne: true } });
+  this.start = Date.now();
+  next();
+});
+
+tourSchema.pre(/^find/, function (next) {
+  this.populate({
+    path: 'guides',
+    select: '-__v -passwordChangedAt',
+  });
+  // console.log(docs);
+  next();
+});
+
+tourSchema.post(/^find/, function (docs, next) {
+  console.log(Date.now() - this.start);
+  // console.log(docs);
+  next();
+});
+
+// AGGREGATION MIDDLEWARE
+// tourSchema.pre('aggregate', function (next) {
+//   this.pipeline().unshift({ $match: { secretTour: { $ne: true } } });
+//   console.log(this.pipeline());
+//   next();
+// });
 
 const Tour = mongoose.model('Tour', tourSchema);
 

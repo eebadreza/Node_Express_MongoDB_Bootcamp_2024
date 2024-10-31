@@ -4,7 +4,6 @@ class APIFeatures {
   constructor(query, queryString) {
     this.query = query;
     this.queryString = queryString;
-    // console.log(query, queryString);
   }
 
   filter() {
@@ -16,8 +15,8 @@ class APIFeatures {
     // 1B) Advance Filtering
     let queryStr = JSON.stringify(queryObj);
     queryStr = queryStr.replace(/\b(lte|lt|gte|gt)\b/g, (match) => `$${match}`);
-
     this.query = this.query.find(JSON.parse(queryStr));
+    // console.log(queryStr, excludedFields);
     return this;
   }
 
